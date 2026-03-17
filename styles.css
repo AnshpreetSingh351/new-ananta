@@ -764,41 +764,58 @@ body {
         );
     }
 
+    /* ── Section content on mobile ── */
     .content-right, .content-left {
         position: absolute;
-        top: auto;
-        bottom: 12%;
-        left: 50%;
-        right: auto;
-        transform: translateX(-50%);
+        /* Vertically centered but nudged toward bottom third */
+        top: 50%;
+        bottom: auto;
+        left: 5%;
+        right: 5%;
+        width: 90%;
+        transform: translateY(calc(-50% + 50px));
         text-align: center;
-        padding: 1.5rem 1.5rem;
-        max-width: 90%;
+        padding: 1.75rem 1.25rem 1.5rem;
         border-right: none;
         border-left: none;
-        background: none;
-        box-shadow: none;
+        /* Subtle dark backing so text is always readable over any video */
+        background: rgba(0, 0, 0, 0.55);
+        backdrop-filter: blur(8px);
+        -webkit-backdrop-filter: blur(8px);
+        border-bottom: 1px solid rgba(201,169,98,0.25);
+        box-shadow: 0 8px 32px rgba(0,0,0,0.5);
     }
+    /* Active: slide up into centered position */
     .video-section.active .section-content {
         opacity: 1;
-        transform: translateX(-50%);
+        transform: translateY(-50%);
     }
     .content-right .section-title::after,
     .content-left .section-title::after {
         margin-left: auto;
         margin-right: auto;
     }
-    
+
     .section-title {
-        font-size: clamp(1.8rem, 5vw, 2.5rem);
+        font-size: clamp(1.6rem, 6vw, 2.2rem);
+        margin-bottom: 0.6rem;
     }
-    
+
+    /* Limit description to 4 lines on mobile with fade-out */
     .section-description {
-        font-size: clamp(0.85rem, 2.5vw, 1rem);
+        font-size: 0.85rem;
+        line-height: 1.7;
+        /* Clamp to 4 lines */
+        display: -webkit-box;
+        -webkit-line-clamp: 4;
+        -webkit-box-orient: vertical;
+        overflow: hidden;
+        margin-top: 0.75rem;
+        color: rgba(255,255,255,0.65);
     }
-    
+
     .scroll-hint {
-        bottom: 20px;
+        bottom: 16px;
     }
     
     .footer-upper { grid-template-columns: 1fr; gap: 2rem; padding: 3rem 5% 2.5rem; }
@@ -830,19 +847,21 @@ body {
     .indicator { width: 8px; height: 8px; }
     
     .content-right, .content-left {
-        padding: 1.25rem;
-        bottom: 14%;
-        max-width: 95%;
+        padding: 1.25rem 1rem;
+        left: 4%;
+        right: 4%;
+        width: 92%;
     }
-    
+
     .section-title {
-        font-size: clamp(1.5rem, 4vw, 2rem);
-        margin-bottom: 0.8rem;
+        font-size: clamp(1.35rem, 5.5vw, 1.8rem);
+        margin-bottom: 0.5rem;
     }
-    
+
     .section-description {
-        font-size: clamp(0.8rem, 2vw, 0.9rem);
-        line-height: 1.6;
+        font-size: 0.82rem;
+        line-height: 1.65;
+        -webkit-line-clamp: 3;
     }
     
     .logo {
