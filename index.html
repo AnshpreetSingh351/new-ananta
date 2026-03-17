@@ -11,6 +11,22 @@
 </head>
 <body>
 
+    <!-- LOADER -->
+    <div class="loader" id="loader">
+        <div class="loader-bg"></div>
+        <div class="loader-content">
+            <div class="loader-logo-wrap">
+                <img src="logo.png" alt="Ananta Street" class="loader-logo">
+            </div>
+            <div class="loader-tagline">Experience Urban Living</div>
+            <div class="loader-bar-wrap">
+                <div class="loader-bar"></div>
+            </div>
+        </div>
+        <div class="loader-curtain-left"></div>
+        <div class="loader-curtain-right"></div>
+    </div>
+
     <div class="section-indicators" id="indicators">
         <div class="indicator active" data-index="0"></div>
         <div class="indicator" data-index="1"></div>
@@ -23,14 +39,16 @@
 
     <div class="main-container" id="mainContainer">
 
-        <!-- Section 1: Logo -->
+        <!-- Section 1 -->
         <section class="video-section active" data-index="0">
             <video class="section-video" muted playsinline>
                 <source src="videos/section1.mp4" type="video/mp4">
             </video>
             <div class="gradient-overlay gradient-center"></div>
             <div class="logo-wrapper">
-                <h1 class="logo">Ananta Street</h1>
+                <div class="logo-img-wrap">
+                    <img src="logo.png" alt="Ananta Street" class="logo-img">
+                </div>
                 <p class="logo-tagline">Experience Urban Living</p>
             </div>
             <div class="scroll-hint">
@@ -63,7 +81,7 @@
             <div class="gradient-overlay gradient-left"></div>
             <div class="section-content content-left">
                 <h2 class="section-title">Vice Tower</h2>
-                <p class="section-description">The open terrace at Ananta Street is designed as a relaxed yet lively rooftop space where people can dine, unwind, and spend quality time. With terrace restaurants, cafés, and alfresco seating, the space creates an inviting evening atmosphere. Beyond dining, it becomes a social hub where experiences, conversations, and city views come together naturally.</p>
+                <p class="section-description">The open terrace at Ananta Street is designed as a relaxed yet lively rooftop space where people can dine, unwind, and spend quality time. With terrace restaurants, cafes, and alfresco seating, the space creates an inviting evening atmosphere. Beyond dining, it becomes a social hub where experiences, conversations, and city views come together naturally.</p>
             </div>
             <div class="scroll-hint">
                 <span>Scroll to continue</span>
@@ -79,7 +97,7 @@
             <div class="gradient-overlay gradient-right"></div>
             <div class="section-content content-right">
                 <h2 class="section-title">Office Space Hub</h2>
-                <p class="section-description">The office spaces at Ananta Street are thoughtfully designed to create a comfortable and efficient working environment. Along with dedicated offices and flexible co-working areas, professionals benefit from in-house cafés, meeting zones, and collaborative spaces. Smart access control, advanced security systems, and seamless connectivity ensure smooth daily operations while supporting a modern work lifestyle.</p>
+                <p class="section-description">The office spaces at Ananta Street are thoughtfully designed to create a comfortable and efficient working environment. Along with dedicated offices and flexible co-working areas, professionals benefit from in-house cafes, meeting zones, and collaborative spaces. Smart access control, advanced security systems, and seamless connectivity ensure smooth daily operations while supporting a modern work lifestyle.</p>
             </div>
             <div class="scroll-hint">
                 <span>Scroll to continue</span>
@@ -94,8 +112,8 @@
             </video>
             <div class="gradient-overlay gradient-left"></div>
             <div class="section-content content-left">
-                <h2 class="section-title">The Société Club</h2>
-                <p class="section-description">The Société Club at Ananta Street is designed as a complete lifestyle destination where fitness, leisure, and social experiences come together. It features a modern gym, open swimming pool, badminton and indoor sports courts, along with relaxing café spaces. The club creates a perfect balance between wellness and recreation, offering members a refreshing space to unwind, socialize, and stay active.</p>
+                <h2 class="section-title">The Societe Club</h2>
+                <p class="section-description">The Societe Club at Ananta Street is designed as a complete lifestyle destination where fitness, leisure, and social experiences come together. It features a modern gym, open swimming pool, badminton and indoor sports courts, along with relaxing cafe spaces. The club creates a perfect balance between wellness and recreation, offering members a refreshing space to unwind, socialize, and stay active.</p>
             </div>
             <div class="scroll-hint">
                 <span>Scroll to continue</span>
@@ -139,8 +157,8 @@
                         <div class="amenity-icon">
                             <svg viewBox="0 0 24 24"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"></path><circle cx="9" cy="7" r="4"></circle><path d="M23 21v-2a4 4 0 0 0-3-3.87"></path><path d="M16 3.13a4 4 0 0 1 0 7.75"></path></svg>
                         </div>
-                        <h3 class="amenity-name">The Société Club</h3>
-                        <p class="amenity-description">A complete lifestyle destination with gym, swimming pool, sports courts, and café spaces for wellness and recreation.</p>
+                        <h3 class="amenity-name">The Societe Club</h3>
+                        <p class="amenity-description">A complete lifestyle destination with gym, swimming pool, sports courts, and cafe spaces for wellness and recreation.</p>
                     </div>
                     <div class="amenity-card">
                         <div class="amenity-icon">
@@ -153,22 +171,32 @@
             </div>
 
             <footer class="footer-section">
-                <div class="footer-content">
+                <div class="footer-upper">
+
                     <div class="footer-brand">
-                        <h2 class="footer-logo">Ananta Street</h2>
-                        <p>A mixed-use destination featuring luxury retail, premium dining, modern office spaces, and world-class amenities. Experience sophisticated urban living in Ludhiana.</p>
-                        <div class="footer-address">Canal Road, Ludhiana, Punjab</div>
+                        <img src="logo.png" alt="Ananta Street" class="footer-logo-img">
+                        <div class="footer-brand-rule"></div>
+                        <p class="footer-brand-desc">A mixed-use destination featuring luxury retail, premium dining, modern office spaces, and world-class amenities. Experience sophisticated urban living in Ludhiana.</p>
+                        <div class="footer-location">
+                            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+                                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7z"/>
+                                <circle cx="12" cy="9" r="2.5"/>
+                            </svg>
+                            <span>Canal Road, Ludhiana, Punjab</span>
+                        </div>
                     </div>
-                    <div class="footer-column">
+
+                    <div class="footer-nav-col">
                         <h4>Explore</h4>
                         <ul>
-                            <li><a href="#section-1">Retail Spaces</a></li>
-                            <li><a href="#section-2">Rooftop Dining</a></li>
-                            <li><a href="#section-3">Office Spaces</a></li>
-                            <li><a href="#section-5">The Club</a></li>
+                            <li><a href="#">Retail Spaces</a></li>
+                            <li><a href="#">Rooftop Dining</a></li>
+                            <li><a href="#">Office Spaces</a></li>
+                            <li><a href="#">The Club</a></li>
                         </ul>
                     </div>
-                    <div class="footer-column">
+
+                    <div class="footer-nav-col">
                         <h4>Information</h4>
                         <ul>
                             <li><a href="#">About Project</a></li>
@@ -177,19 +205,23 @@
                             <li><a href="#">Virtual Tour</a></li>
                         </ul>
                     </div>
-                    <div class="footer-column">
+
+                    <div class="footer-nav-col">
                         <h4>Contact</h4>
                         <ul>
                             <li><a href="tel:+919988776655">+91 99887 76655</a></li>
-                            <li><a href="mailto:info@anantastreet.com">info@anantastreet.com</a></li>
+                            <li><a href="#">info@anantastreet.com</a></li>
                             <li><a href="#">Canal Road, Ludhiana</a></li>
-                            <li><a href="#">Schedule Visit</a></li>
+                            <li><a href="#">Schedule a Visit</a></li>
                         </ul>
                     </div>
+
                 </div>
+
                 <div class="footer-divider"></div>
+
                 <div class="footer-bottom">
-                    <p>&copy; 2026 Ananta Street. All rights reserved.</p>
+                    <p>2026 Ananta Street. All rights reserved.</p>
                     <div class="social-links">
                         <a href="#" title="Instagram">
                             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
@@ -212,6 +244,7 @@
                         </a>
                     </div>
                 </div>
+
             </footer>
 
         </section>

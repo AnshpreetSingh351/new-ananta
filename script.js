@@ -1,3 +1,24 @@
+// ── LOADER ──────────────────────────────────────────────────
+(function () {
+    const loader = document.getElementById('loader');
+    if (!loader) return;
+
+    // Step 1 @ 2.8s — fade out logo content
+    setTimeout(() => {
+        loader.classList.add('loader-exit');
+
+        // Step 2 @ 2.8 + 1.1s — curtains have closed over loader, now hide it
+        setTimeout(() => {
+            loader.classList.add('loader-done');
+            // Start hero video now that loader is gone
+            if (window._videoController) {
+                window._videoController.playCurrentVideo();
+            }
+        }, 1100);
+    }, 2800);
+})();
+// ────────────────────────────────────────────────────────────
+
 class VideoSectionController {
     constructor() {
         this.currentSection = 0;
@@ -26,7 +47,7 @@ class VideoSectionController {
             indicator.addEventListener('click', () => this.goToSection(index));
         });
 
-        this.playCurrentVideo();
+        // Video will be started by the loader when it finishes
     }
 
     pauseCurrentVideo() {
@@ -164,4 +185,6 @@ class VideoSectionController {
     }
 }
 
-document.addEventListener('DOMContentLoaded', () => new VideoSectionController());
+document.addEventListener('DOMContentLoaded', () => {
+    window._videoController = new VideoSectionController();
+});
