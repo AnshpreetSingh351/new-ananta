@@ -168,7 +168,36 @@ body {
     width: 100%; height: 100%;
     z-index: 1;
     object-fit: cover;
+    /* Start slightly dimmed; fades to full brightness when video plays */
+    opacity: 0.18;
+    transition: opacity 1s ease;
 }
+
+/* When video is actively playing, fade to full brightness */
+.video-section.video-playing .section-video {
+    opacity: 1;
+}
+
+/* When video is paused mid-play, dim slightly */
+.video-section.video-paused .section-video {
+    opacity: 0.45;
+    transition: opacity 0.6s ease;
+}
+
+/* ── Video progress bar ─────────────────────────────────── */
+.video-progress-bar {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    height: 2px;
+    width: 0%;
+    background: linear-gradient(90deg, var(--color-accent), var(--color-accent-light));
+    z-index: 10;
+    opacity: 0;
+    transition: opacity 0.4s ease, width 0.1s linear;
+    pointer-events: none;
+}
+/* ──────────────────────────────────────────────────────── */
 
 .gradient-overlay {
     position: absolute;
@@ -177,6 +206,7 @@ body {
     height: 100%;
     z-index: 2;
     pointer-events: none;
+    transition: opacity 0.8s ease;
 }
 .gradient-right {
     right: 0;
@@ -219,6 +249,30 @@ body {
 .video-section.active .section-content {
     opacity: 1;
     transform: translateY(-50%);
+}
+
+/* ── Slide text OUT when video is playing ─────────────── */
+.video-section.video-playing .content-right {
+    opacity: 0;
+    transform: translateY(-50%) translateX(80px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+}
+.video-section.video-playing .content-left {
+    opacity: 0;
+    transform: translateY(-50%) translateX(-80px);
+    transition: opacity 0.6s ease, transform 0.6s ease;
+}
+
+/* ── Fade overlay OUT when video is playing ───────────── */
+.video-section.video-playing .gradient-overlay {
+    opacity: 0;
+    transition: opacity 0.8s ease;
+}
+
+/* ── Hide scroll hint during playback ────────────────── */
+.video-section.video-playing .scroll-hint {
+    opacity: 0 !important;
+    transition: opacity 0.4s ease;
 }
 
 /* Gold accent bar on the inner edge of each content block */
@@ -285,6 +339,16 @@ body {
 .video-section.active .logo-img-wrap {
     opacity: 1;
     transform: translateY(0);
+}
+
+/* Fade out entire logo block when hero video plays */
+.video-section.video-playing .logo-wrapper {
+    opacity: 0;
+    transform: translateY(-20px);
+    transition: opacity 1.2s ease, transform 1.2s ease;
+}
+.video-section .logo-wrapper {
+    transition: opacity 1.2s ease, transform 1.2s ease;
 }
 
 .logo-img {
@@ -789,6 +853,13 @@ body {
         opacity: 1;
         transform: translateY(-50%);
     }
+    /* On mobile, slide down + fade (both directions) */
+    .video-section.video-playing .content-right,
+    .video-section.video-playing .content-left {
+        opacity: 0;
+        transform: translateY(calc(-50% + 60px));
+        transition: opacity 0.5s ease, transform 0.5s ease;
+    }
     .content-right .section-title::after,
     .content-left .section-title::after {
         margin-left: auto;
@@ -928,4 +999,404 @@ body {
     .footer-section {
         padding: 3rem 4% 0;
     }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   ENQUIRY PANEL
+═══════════════════════════════════════════════════════════ */
+
+/* ── Floating trigger tab ────────────────────────────────── */
+.enquiry-tab {
+    position: fixed;
+    left: 0;
+    top: 50%;
+    transform: translateY(-50%) translateX(0);
+    z-index: 1000;
+    background: none;
+    border: none;
+    cursor: pointer;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 0.55rem;
+    padding: 1.1rem 0.55rem;
+    background: rgba(10,10,10,0.92);
+    border-right: 1px solid rgba(201,169,98,0.3);
+    border-top: 1px solid rgba(201,169,98,0.15);
+    border-bottom: 1px solid rgba(201,169,98,0.15);
+    border-radius: 0 4px 4px 0;
+    transition: background 0.3s ease, border-color 0.3s ease, transform 0.4s cubic-bezier(0.76,0,0.24,1);
+    backdrop-filter: blur(12px);
+    -webkit-backdrop-filter: blur(12px);
+}
+.enquiry-tab:hover {
+    background: rgba(201,169,98,0.1);
+    border-color: rgba(201,169,98,0.55);
+}
+.enquiry-tab.panel-open {
+    transform: translateY(-50%) translateX(-100%);
+    pointer-events: none;
+}
+.enquiry-tab-text {
+    font-family: var(--font-body);
+    font-size: 0.62rem;
+    font-weight: 500;
+    letter-spacing: 0.22em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+    writing-mode: vertical-rl;
+    text-orientation: mixed;
+    transform: rotate(180deg);
+    white-space: nowrap;
+}
+.enquiry-tab-line {
+    display: block;
+    width: 1px;
+    height: 22px;
+    background: linear-gradient(to bottom, transparent, rgba(201,169,98,0.5));
+}
+.enquiry-tab-line:last-child {
+    background: linear-gradient(to top, transparent, rgba(201,169,98,0.5));
+}
+
+/* ── Backdrop ────────────────────────────────────────────── */
+.enquiry-backdrop {
+    position: fixed;
+    inset: 0;
+    z-index: 1001;
+    background: rgba(0,0,0,0.55);
+    opacity: 0;
+    pointer-events: none;
+    transition: opacity 0.5s ease;
+    backdrop-filter: blur(2px);
+    -webkit-backdrop-filter: blur(2px);
+}
+.enquiry-backdrop.open {
+    opacity: 1;
+    pointer-events: all;
+}
+
+/* ── Panel ───────────────────────────────────────────────── */
+.enquiry-panel {
+    position: fixed;
+    top: 0;
+    left: 0;
+    width: min(440px, 100vw);
+    height: 100vh;
+    z-index: 1002;
+    background: #ffffff;
+    border-right: 1px solid rgba(201,169,98,0.25);
+    transform: translateX(-100%);
+    transition: transform 0.65s cubic-bezier(0.76, 0, 0.24, 1);
+    overflow-y: auto;
+    overflow-x: hidden;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(201,169,98,0.3) transparent;
+}
+.enquiry-panel.open {
+    transform: translateX(0);
+}
+.enquiry-panel::-webkit-scrollbar { width: 3px; }
+.enquiry-panel::-webkit-scrollbar-track { background: transparent; }
+.enquiry-panel::-webkit-scrollbar-thumb { background: rgba(201,169,98,0.2); border-radius: 2px; }
+
+/* Gold line at top of panel */
+.enquiry-panel::before {
+    content: '';
+    display: block;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(90deg, transparent, var(--color-accent), transparent);
+}
+
+/* ── Close button ────────────────────────────────────────── */
+.enquiry-close {
+    position: absolute;
+    top: 1.4rem;
+    right: 1.4rem;
+    width: 36px;
+    height: 36px;
+    border: 1px solid rgba(0,0,0,0.12);
+    border-radius: 50%;
+    background: none;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: rgba(0,0,0,0.35);
+    transition: all 0.25s ease;
+    z-index: 2;
+}
+.enquiry-close:hover {
+    border-color: rgba(201,169,98,0.6);
+    color: var(--color-accent);
+    background: rgba(201,169,98,0.08);
+}
+.enquiry-close svg { width: 16px; height: 16px; }
+
+/* ── Inner scroll area ───────────────────────────────────── */
+.enquiry-inner {
+    padding: 3rem 2.4rem 2.5rem;
+}
+
+/* ── Header ──────────────────────────────────────────────── */
+.enquiry-header { margin-bottom: 2.2rem; }
+
+.enquiry-label {
+    font-family: var(--font-body);
+    font-size: 0.62rem;
+    font-weight: 500;
+    letter-spacing: 0.28em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+    margin-bottom: 0.65rem;
+}
+
+.enquiry-title {
+    font-family: var(--font-display);
+    font-size: clamp(1.9rem, 4vw, 2.5rem);
+    font-weight: 500;
+    letter-spacing: 0.01em;
+    line-height: 1.1;
+    color: #0a0a0a;
+}
+
+.enquiry-rule {
+    width: 36px;
+    height: 1px;
+    background: var(--color-accent);
+    opacity: 0.8;
+    margin: 1rem 0;
+}
+
+.enquiry-sub {
+    font-size: 0.82rem;
+    font-weight: 300;
+    color: rgba(0,0,0,0.45);
+    line-height: 1.8;
+}
+
+/* ── Form fields ─────────────────────────────────────────── */
+.enquiry-form {
+    display: flex;
+    flex-direction: column;
+    gap: 1.6rem;
+}
+
+.ef-field {
+    position: relative;
+    display: flex;
+    flex-direction: column;
+    gap: 0.45rem;
+}
+
+.ef-field label {
+    font-size: 0.65rem;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    color: rgba(0,0,0,0.35);
+    transition: color 0.25s ease;
+}
+.ef-optional {
+    font-weight: 300;
+    letter-spacing: 0.05em;
+    text-transform: none;
+    color: rgba(0,0,0,0.2);
+}
+
+.ef-field input,
+.ef-field textarea {
+    background: none;
+    border: none;
+    outline: none;
+    color: #0a0a0a;
+    font-family: var(--font-body);
+    font-size: 0.92rem;
+    font-weight: 300;
+    padding: 0.35rem 0;
+    width: 100%;
+    resize: none;
+    caret-color: var(--color-accent);
+}
+.ef-field input::placeholder,
+.ef-field textarea::placeholder {
+    color: rgba(0,0,0,0.2);
+}
+.ef-field input:focus ~ .ef-line,
+.ef-field textarea:focus ~ .ef-line {
+    width: 100%;
+    background: var(--color-accent);
+}
+.ef-field:focus-within label {
+    color: rgba(180,130,50,0.9);
+}
+
+/* Animated underline */
+.ef-line {
+    display: block;
+    position: relative;
+    height: 1px;
+    width: 100%;
+    background: rgba(0,0,0,0.12);
+    margin-top: 2px;
+}
+.ef-line::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--color-accent);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.4s cubic-bezier(0.76, 0, 0.24, 1);
+}
+.ef-field:focus-within .ef-line::after {
+    transform: scaleX(1);
+}
+
+/* Select */
+.ef-select-wrap {
+    position: relative;
+}
+.ef-select-wrap select {
+    background: none;
+    border: none;
+    outline: none;
+    color: #0a0a0a;
+    font-family: var(--font-body);
+    font-size: 0.92rem;
+    font-weight: 300;
+    padding: 0.35rem 2rem 0.35rem 0;
+    width: 100%;
+    cursor: pointer;
+    -webkit-appearance: none;
+    appearance: none;
+}
+.ef-select-wrap select option {
+    background: #fff;
+    color: #0a0a0a;
+}
+.ef-select-arrow {
+    position: absolute;
+    right: 0;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 14px;
+    height: 14px;
+    stroke: rgba(201,169,98,0.5);
+    pointer-events: none;
+}
+
+/* ── Submit button ───────────────────────────────────────── */
+.ef-submit {
+    margin-top: 0.6rem;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 1rem;
+    padding: 1rem 1.5rem;
+    background: transparent;
+    border: 1px solid rgba(201,169,98,0.35);
+    color: var(--color-accent);
+    font-family: var(--font-body);
+    font-size: 0.78rem;
+    font-weight: 500;
+    letter-spacing: 0.2em;
+    text-transform: uppercase;
+    cursor: pointer;
+    position: relative;
+    overflow: hidden;
+    transition: color 0.4s ease, border-color 0.4s ease;
+}
+.ef-submit::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: var(--color-accent);
+    transform: scaleX(0);
+    transform-origin: left;
+    transition: transform 0.45s cubic-bezier(0.76, 0, 0.24, 1);
+    z-index: 0;
+}
+.ef-submit:hover::before { transform: scaleX(1); }
+.ef-submit:hover {
+    color: #0a0a0a;
+    border-color: var(--color-accent);
+}
+.ef-submit-text, .ef-submit-icon { position: relative; z-index: 1; }
+.ef-submit-icon svg { width: 16px; height: 16px; display: block; }
+
+/* ── Success message ─────────────────────────────────────── */
+.ef-success {
+    display: none;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem 1.2rem;
+    border: 1px solid rgba(201,169,98,0.35);
+    background: rgba(201,169,98,0.07);
+    animation: efFadeIn 0.5s ease forwards;
+}
+.ef-success.visible { display: flex; }
+.ef-success svg {
+    width: 18px; height: 18px;
+    stroke: var(--color-accent);
+    flex-shrink: 0;
+}
+.ef-success p {
+    font-size: 0.82rem;
+    font-weight: 300;
+    color: rgba(0,0,0,0.6);
+}
+@keyframes efFadeIn { from { opacity:0; transform:translateY(6px); } to { opacity:1; transform:none; } }
+
+/* ── Footer note ─────────────────────────────────────────── */
+.enquiry-footer-note {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-top: 2.2rem;
+    padding-top: 1.6rem;
+    border-top: 1px solid rgba(0,0,0,0.08);
+}
+.enquiry-footer-note svg {
+    width: 12px; height: 12px;
+    stroke: rgba(201,169,98,0.7);
+    flex-shrink: 0;
+}
+.enquiry-footer-note span {
+    font-size: 0.7rem;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: rgba(0,0,0,0.3);
+}
+
+/* ── Panel open — stagger field animations ───────────────── */
+.enquiry-panel.open .ef-field {
+    opacity: 0;
+    animation: efSlideUp 0.5s ease forwards;
+}
+.enquiry-panel.open .ef-field:nth-child(1) { animation-delay: 0.25s; }
+.enquiry-panel.open .ef-field:nth-child(2) { animation-delay: 0.32s; }
+.enquiry-panel.open .ef-field:nth-child(3) { animation-delay: 0.39s; }
+.enquiry-panel.open .ef-field:nth-child(4) { animation-delay: 0.46s; }
+.enquiry-panel.open .ef-field:nth-child(5) { animation-delay: 0.53s; }
+.enquiry-panel.open .enquiry-header,
+.enquiry-panel.open .ef-submit,
+.enquiry-panel.open .enquiry-footer-note {
+    opacity: 0;
+    animation: efSlideUp 0.5s ease forwards;
+}
+.enquiry-panel.open .enquiry-header     { animation-delay: 0.15s; }
+.enquiry-panel.open .ef-submit          { animation-delay: 0.6s; }
+.enquiry-panel.open .enquiry-footer-note{ animation-delay: 0.65s; }
+
+@keyframes efSlideUp {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* ── Mobile ──────────────────────────────────────────────── */
+@media (max-width: 480px) {
+    .enquiry-inner { padding: 2.5rem 1.6rem 2rem; }
+    .enquiry-tab { display: none; }
 }
