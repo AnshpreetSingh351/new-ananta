@@ -60,6 +60,7 @@ class VideoSectionController {
         this._scrollGated    = false;
         this._gateTimer      = null;
         this._isTouchInput   = false;
+        this._mobilePlayingVideo = false;
 
         this.init();
     }
@@ -140,6 +141,7 @@ class VideoSectionController {
     _smoothSeek(now) {
         const sec = this.currentSection;
         if (!this.isVideoSection(sec)) return;
+        if (this._mobilePlayingVideo) return;  // don't fight video.play()
 
         const video = this.videos[sec];
         if (!video || video.readyState < 2) return;
@@ -263,24 +265,63 @@ class VideoSectionController {
             return;
         }
 
-        // No gate on mobile — continuous flow
-        // Continuous — every pixel counts, no threshold
-        if (Math.abs(diff) > 2) {
-            this._touchMoved = true;
+        if (Math.abs(diff) > 20) {
             this.lastTouchY = y;
 
-            // 3x multiplier — faster, more responsive feel
-            const amount = Math.abs(diff) * 3;
-            this.handleNavigate(diff > 0 ? 1 : -1, amount);
+            const sec = this.currentSection;
+
+            if (this.isVideoSection(sec) && diff > 0) {
+                // Swipe down on a video section → play it fully
+                if (this.phase === 'arrived' || this.phase === 'scrubbing') {
+                    this._playFullVideo(sec);
+                    return;
+                }
+            }
+
+            // Non-video section or swipe up → normal navigate
+            this.handleNavigate(diff > 0 ? 1 : -1, Math.abs(diff) * 3);
         }
+    }
+
+    // Play video at normal speed, then auto-go to next section
+    _playFullVideo(sec) {
+        if (this._mobilePlayingVideo) return;
+        this._mobilePlayingVideo = true;
+
+        const video = this.videos[sec];
+        if (!video) return;
+
+        this.phase = 'scrubbing';
+        this.sections[sec].classList.add('video-playing');
+
+        video.currentTime = 0;
+        video.play();
+
+        const onEnd = () => {
+            video.removeEventListener('ended', onEnd);
+            this._mobilePlayingVideo = false;
+            this.phase = 'done';
+            this.sections[sec].classList.remove('video-playing');
+            this.transitionToSection(sec + 1);
+        };
+        video.addEventListener('ended', onEnd);
     }
 
     handleTouchEnd() {
         // On mobile there's no momentum — finger lifted = gesture done.
-        // Clear the gate immediately so next touch goes through instantly.
         if (this._scrollGated) {
             this._scrollGated = false;
             clearTimeout(this._gateTimer);
+        }
+    }
+
+    // Stop mobile auto-play if it's running
+    _stopMobilePlay(sec) {
+        if (this._mobilePlayingVideo && this.videos[sec]) {
+            this.videos[sec].pause();
+            this._mobilePlayingVideo = false;
+            this.sections[sec].classList.remove('video-playing');
+            this.phase = 'arrived';
         }
     }
 
@@ -402,6 +443,7 @@ class VideoSectionController {
         if (this.cooldownTimer) clearTimeout(this.cooldownTimer);
 
         if (this.isVideoSection(this.currentSection)) {
+            this._stopMobilePlay(this.currentSection);
             this.sections[this.currentSection].classList.remove('video-playing');
             this.sections[this.currentSection].classList.remove('video-paused');
             this.setProgressBar(null);
@@ -426,6 +468,7 @@ class VideoSectionController {
             this.renderTime[idx]  = 0;
             this._smoothedAccum[idx] = 0;
             if (this.videos[idx]) {
+                this.videos[idx].pause();
                 this.videos[idx].currentTime = 0;
             }
         }
