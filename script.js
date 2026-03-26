@@ -1,11 +1,8 @@
 /* ═══════════════════════════════════════════════════════════════
    ANANTA STREET — Ultra-Smooth Scroll-Scrub Video Controller
    ─────────────────────────────────────────────────────────────
-   WHY THIS IS SMOOTH:
-   1. Videos loaded as blobs (entire file in RAM → instant seeks)
-   2. Scroll input only sets a TARGET time
-   3. A RAF loop lerps video.currentTime toward target smoothly
-   4. Small incremental seeks → browser never jumps keyframes
+   Desktop: Scroll-to-scrub with smooth lerp + gate
+   Mobile:  One swipe = transition to next section (video plays via CSS)
    ═══════════════════════════════════════════════════════════════ */
 
 // ── LOADER ──────────────────────────────────────────────────
@@ -42,25 +39,20 @@ class VideoSectionController {
         this.scrollAccum = [];
 
         // Smooth time tracking
-        this.targetTime  = [];   // where scroll says we should be
-        this.renderTime  = [];   // what video.currentTime actually is (lerped)
+        this.targetTime  = [];
+        this.renderTime  = [];
 
         this.SCROLL_TO_COMPLETE = 2800;
-
-        // Smoothing — lower = silkier
         this.LERP_FACTOR = 0.07;
-
-        // Input smoothing — dampens spiky scroll deltas
         this._smoothedAccum = [];
-
         this._lastRAF = performance.now();
 
-        // Scroll gate — blocks leftover momentum after video ends.
-        // Clears after 120ms of NO scroll events (= gesture ended).
-        this._scrollGated    = false;
-        this._gateTimer      = null;
-        this._isTouchInput   = false;
-        this._mobilePlayingVideo = false;
+        // Scroll gate (desktop only)
+        this._scrollGated = false;
+        this._gateTimer   = null;
+
+        // Mobile detection
+        this._isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
 
         this.init();
     }
@@ -96,7 +88,6 @@ class VideoSectionController {
                         video.load();
                     })
                     .catch(() => {
-                        // Fallback: let browser stream normally
                         video.preload = 'auto';
                         video.load();
                     });
@@ -114,7 +105,6 @@ class VideoSectionController {
         window.addEventListener('wheel',      this.handleWheel.bind(this),      { passive: false });
         window.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: true  });
         window.addEventListener('touchmove',  this.handleTouchMove.bind(this),  { passive: false });
-        window.addEventListener('touchend',   this.handleTouchEnd.bind(this),   { passive: true  });
         window.addEventListener('keydown',    this.handleKeydown.bind(this));
 
         this.indicators.forEach((ind, i) => {
@@ -131,22 +121,14 @@ class VideoSectionController {
         });
     }
 
-    /* ─────────────────────────────────────────────────────────
-       SMOOTH SEEK — runs every frame via RAF.
-       Lerps renderTime toward targetTime, then sets
-       video.currentTime in tiny increments. Small seeks
-       hit the SAME keyframe window so the browser decodes
-       fast — no stutter.
-    ───────────────────────────────────────────────────────── */
+    /* ─── SMOOTH SEEK (desktop only — RAF loop) ─────────── */
     _smoothSeek(now) {
         const sec = this.currentSection;
         if (!this.isVideoSection(sec)) return;
-        if (this._mobilePlayingVideo) return;  // don't fight video.play()
 
         const video = this.videos[sec];
         if (!video || video.readyState < 2) return;
 
-        // Frame-rate-independent lerp
         const elapsed = now - this._lastRAF;
         this._lastRAF = now;
         const dt   = Math.min(elapsed / 16.667, 3);
@@ -156,14 +138,10 @@ class VideoSectionController {
 
         if (Math.abs(diff) > 0.001) {
             let step = diff * lerp;
-
-            // Clamp max seek per frame — prevents big jumps that
-            // force the decoder to cross keyframes (= jank source)
-            const maxStep = 0.08;  // ~2 frames at 30fps
+            const maxStep = 0.08;
             if (Math.abs(step) > maxStep) {
                 step = Math.sign(step) * maxStep;
             }
-
             this.renderTime[sec] += step;
             video.currentTime = this.renderTime[sec];
         }
@@ -201,26 +179,17 @@ class VideoSectionController {
         return dy;
     }
 
-    // Mac trackpad momentum fires every ~16ms. A real gesture end
-    // = no events for 120ms+. So we gate all input, and reset a
-    // 120ms timer on every event. When it fires → gate off → next
-    // scroll goes through instantly.
-    //
-    // Windows: no momentum, so 120ms passes immediately. Feels instant.
-    // Mac: eats all momentum, clears 120ms after last one. Then instant.
     _isScrollGated() {
         if (!this._scrollGated) return false;
-
         clearTimeout(this._gateTimer);
         this._gateTimer = setTimeout(() => {
             this._scrollGated = false;
         }, 120);
-
         return true;
     }
 
+    /* ─── DESKTOP: WHEEL ────────────────────────────────── */
     handleWheel(e) {
-        this._isTouchInput = false;
         const isLast = this.currentSection === this.totalSections - 1;
         if (isLast) {
             const el = this.sections[this.currentSection];
@@ -238,16 +207,15 @@ class VideoSectionController {
         this.handleNavigate(dy > 0 ? 1 : -1, Math.abs(dy));
     }
 
+    /* ─── MOBILE: TOUCH ─────────────────────────────────── */
     handleTouchStart(e) {
-        this.lastTouchY = e.touches[0].clientY;
+        this.lastTouchY   = e.touches[0].clientY;
         this._touchStartY = e.touches[0].clientY;
-        this._touchMoved = false;
-        this._isTouchInput = true;
     }
 
     handleTouchMove(e) {
         const y    = e.touches[0].clientY;
-        const diff = this.lastTouchY - y;  // positive = scroll down
+        const diff = this.lastTouchY - y;  // positive = swipe up (scroll down)
 
         const isLast = this.currentSection === this.totalSections - 1;
         if (isLast) {
@@ -255,7 +223,7 @@ class VideoSectionController {
             if (el.scrollTop === 0 && diff < -30 && !this.isTransitioning) {
                 e.preventDefault();
                 this.lastTouchY = y;
-                this.handleNavigate(-1, Math.abs(diff));
+                this.transitionToSection(this.currentSection - 1);
             }
             return;
         }
@@ -265,66 +233,24 @@ class VideoSectionController {
             return;
         }
 
-        if (Math.abs(diff) > 20) {
-            this.lastTouchY = y;
+        // Need at least 40px of swipe to trigger
+        const totalDiff = this._touchStartY - y;
 
-            const sec = this.currentSection;
+        if (Math.abs(totalDiff) > 40) {
+            this.lastTouchY    = y;
+            this._touchStartY  = y;  // reset so it doesn't fire again
 
-            if (this.isVideoSection(sec) && diff > 0) {
-                // Swipe down on a video section → play it fully
-                if (this.phase === 'arrived' || this.phase === 'scrubbing') {
-                    this._playFullVideo(sec);
-                    return;
-                }
+            if (totalDiff > 0) {
+                // Swipe UP → go forward (next section)
+                this.transitionToSection(this.currentSection + 1);
+            } else {
+                // Swipe DOWN → go backward (prev section)
+                this.transitionToSection(this.currentSection - 1);
             }
-
-            // Non-video section or swipe up → normal navigate
-            this.handleNavigate(diff > 0 ? 1 : -1, Math.abs(diff) * 3);
         }
     }
 
-    // Play video at normal speed, then auto-go to next section
-    _playFullVideo(sec) {
-        if (this._mobilePlayingVideo) return;
-        this._mobilePlayingVideo = true;
-
-        const video = this.videos[sec];
-        if (!video) return;
-
-        this.phase = 'scrubbing';
-        this.sections[sec].classList.add('video-playing');
-
-        video.currentTime = 0;
-        video.play();
-
-        const onEnd = () => {
-            video.removeEventListener('ended', onEnd);
-            this._mobilePlayingVideo = false;
-            this.phase = 'done';
-            this.sections[sec].classList.remove('video-playing');
-            this.transitionToSection(sec + 1);
-        };
-        video.addEventListener('ended', onEnd);
-    }
-
-    handleTouchEnd() {
-        // On mobile there's no momentum — finger lifted = gesture done.
-        if (this._scrollGated) {
-            this._scrollGated = false;
-            clearTimeout(this._gateTimer);
-        }
-    }
-
-    // Stop mobile auto-play if it's running
-    _stopMobilePlay(sec) {
-        if (this._mobilePlayingVideo && this.videos[sec]) {
-            this.videos[sec].pause();
-            this._mobilePlayingVideo = false;
-            this.sections[sec].classList.remove('video-playing');
-            this.phase = 'arrived';
-        }
-    }
-
+    /* ─── KEYBOARD ──────────────────────────────────────── */
     handleKeydown(e) {
         if (this.isTransitioning) return;
         if (e.key === 'ArrowDown' || e.key === ' ') {
@@ -336,7 +262,7 @@ class VideoSectionController {
         }
     }
 
-    // ── Navigation ──────────────────────────────────────────
+    /* ─── DESKTOP NAVIGATION (scroll-to-scrub) ──────────── */
     handleNavigate(delta, amount = 60) {
         const sec = this.currentSection;
         if (!this.isVideoSection(sec)) {
@@ -376,10 +302,7 @@ class VideoSectionController {
         this.sections[sec].classList.add('video-playing');
         this.phase = 'scrubbing';
 
-        // Cap per-event
         amount = Math.min(amount, 100);
-
-        // Smooth the input — blend new delta with previous to kill spikes
         this._smoothedAccum[sec] = this._smoothedAccum[sec] * 0.3 + amount * 0.7;
 
         this.scrollAccum[sec] = Math.min(
@@ -393,17 +316,9 @@ class VideoSectionController {
 
         if (progress >= 1) {
             this.phase = 'done';
-
-            if (this._isTouchInput) {
-                // Mobile — no stop, flow straight to next section
-                setTimeout(() => this.setProgressBar(null), 300);
-                this.transitionToSection(sec + 1);
-            } else {
-                // Desktop — gate scroll, user must scroll again
-                this._scrollGated = true;
-                setTimeout(() => this.setProgressBar(null), 600);
-                this.updateScrollHint('Scroll to continue');
-            }
+            this._scrollGated = true;
+            setTimeout(() => this.setProgressBar(null), 600);
+            this.updateScrollHint('Scroll to continue');
         } else {
             this.updateScrollHint('Keep scrolling…');
         }
@@ -434,7 +349,7 @@ class VideoSectionController {
         }
     }
 
-    // ── Section transitions ─────────────────────────────────
+    /* ─── SECTION TRANSITIONS ───────────────────────────── */
     transitionToSection(idx) {
         if (idx < 0 || idx >= this.totalSections) return;
         if (this.isTransitioning) return;
@@ -442,8 +357,8 @@ class VideoSectionController {
         this.isTransitioning = true;
         if (this.cooldownTimer) clearTimeout(this.cooldownTimer);
 
+        // Cleanup outgoing
         if (this.isVideoSection(this.currentSection)) {
-            this._stopMobilePlay(this.currentSection);
             this.sections[this.currentSection].classList.remove('video-playing');
             this.sections[this.currentSection].classList.remove('video-paused');
             this.setProgressBar(null);
@@ -456,6 +371,7 @@ class VideoSectionController {
             this.sections[this.currentSection].scrollTop = 0;
         }
 
+        // Activate incoming
         this.currentSection = idx;
         this.phase = 'arrived';
 
