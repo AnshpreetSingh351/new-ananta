@@ -248,36 +248,9 @@ class VideoSectionController {
         }
 
         if (diff > 0) {
-            // SWIPE UP → play video fast then go next
+            // SWIPE UP → fast-scrub video then go next
             if (this.isVideoSection(sec)) {
-                const video = this.videos[sec];
-                if (video && video.readyState >= 2) {
-                    this._mobileVideoPlaying = true;
-                    this.sections[sec].classList.add('video-playing');
-
-                    // Play at high speed so video finishes in ~1-1.5 seconds
-                    const duration = video.duration || 5;
-                    video.playbackRate = Math.max(duration / 1.2, 2);
-                    video.currentTime = 0;
-                    video.play().then(() => {
-                        const onEnd = () => {
-                            video.removeEventListener('ended', onEnd);
-                            video.pause();
-                            video.playbackRate = 1;
-                            this._mobileVideoPlaying = false;
-                            this.sections[sec].classList.remove('video-playing');
-                            this.transitionToSection(sec + 1);
-                        };
-                        video.addEventListener('ended', onEnd);
-                    }).catch(() => {
-                        video.playbackRate = 1;
-                        this._mobileVideoPlaying = false;
-                        this.sections[sec].classList.remove('video-playing');
-                        this.transitionToSection(sec + 1);
-                    });
-                } else {
-                    this.transitionToSection(sec + 1);
-                }
+                this._fastScrubVideo(sec);
             } else {
                 this.transitionToSection(sec + 1);
             }
@@ -285,6 +258,42 @@ class VideoSectionController {
             // SWIPE DOWN → go back
             this.transitionToSection(sec - 1);
         }
+    }
+
+    // Fast-scrub: advance video.currentTime via RAF over ~1.5 seconds
+    // Works on every mobile browser — no play(), no playbackRate
+    _fastScrubVideo(sec) {
+        const video = this.videos[sec];
+        if (!video || video.readyState < 2) {
+            this.transitionToSection(sec + 1);
+            return;
+        }
+
+        this._mobileVideoPlaying = true;
+        this.sections[sec].classList.add('video-playing');
+
+        const duration  = video.duration || 5;
+        const scrubTime = 1.5; // seconds to complete the scrub
+        const startTime = performance.now();
+
+        video.currentTime = 0;
+
+        const animate = (now) => {
+            const elapsed  = (now - startTime) / 1000;
+            const progress = Math.min(elapsed / scrubTime, 1);
+
+            video.currentTime = progress * duration;
+
+            if (progress < 1) {
+                requestAnimationFrame(animate);
+            } else {
+                // Done — go to next section
+                this._mobileVideoPlaying = false;
+                this.sections[sec].classList.remove('video-playing');
+                this.transitionToSection(sec + 1);
+            }
+        };
+        requestAnimationFrame(animate);
     }
 
     /* ═══════════════════════════════════════════════════════
