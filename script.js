@@ -51,8 +51,6 @@ class VideoSectionController {
 
         // Mobile
         this._touchStartY = 0;
-        this._mobileVideoPlaying = false;
-        this._mobileAutoplay = false;
 
         this.init();
     }
@@ -129,7 +127,6 @@ class VideoSectionController {
 
         const video = this.videos[sec];
         if (!video || video.readyState < 2) return;
-        if (!video.paused) return; // video is auto-playing, don't fight it
 
         const elapsed = now - this._lastRAF;
         this._lastRAF = now;
@@ -152,16 +149,6 @@ class VideoSectionController {
     onLoaderDone() {
         this.phase = 'arrived';
         this.updateScrollHint('Scroll to play');
-
-        // On mobile, auto-play first video as background
-        const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
-        if (isMobile && this.videos[0]) {
-            const v = this.videos[0];
-            v.loop = true;
-            v.play().then(() => {
-                this.sections[0].classList.add('video-playing');
-            }).catch(() => {});
-        }
     }
 
     isVideoSection(idx) { return idx < this.totalVideoSections; }
@@ -221,12 +208,10 @@ class VideoSectionController {
     }
 
     /* ═══════════════════════════════════════════════════════
-       MOBILE: TOUCH
-       - touchstart: record Y
-       - touchmove: just prevent scroll, track Y
-       - touchend: detect swipe direction, play video from
-         THIS event (touchend = valid user gesture, so
-         video.play() works on iOS/Android)
+       MOBILE: TOUCH — same scrub behavior as desktop
+       Swipe up = video scrubs forward
+       Swipe down = video scrubs backward
+       Video ends → stops, swipe again to go next section
     ═══════════════════════════════════════════════════════ */
     handleTouchStart(e) {
         this._touchStartY = e.touches[0].clientY;
@@ -234,38 +219,37 @@ class VideoSectionController {
     }
 
     handleTouchMove(e) {
-        // Allow normal scroll on last section (footer)
+        const y    = e.touches[0].clientY;
+        const diff = this.lastTouchY - y;  // positive = swipe up
+
+        // Always track
+        this.lastTouchY = y;
+
+        // Last section — allow native scroll, but swipe down at top goes back
         const isLast = this.currentSection === this.totalSections - 1;
         if (isLast) return;
 
-        // Block native scroll on all other sections
         e.preventDefault();
+        if (this.isTransitioning) return;
+
+        // Every 2px of finger movement = scrub
+        if (Math.abs(diff) > 2) {
+            const amount = Math.abs(diff) * 2.5;
+            this.handleNavigate(diff > 0 ? 1 : -1, amount);
+        }
     }
 
     handleTouchEnd(e) {
-        const diff = this._touchStartY - (e.changedTouches[0]?.clientY || this.lastTouchY);
+        const endY = e.changedTouches[0]?.clientY || this.lastTouchY;
+        const diff = this._touchStartY - endY;
 
-        if (Math.abs(diff) < 40) return;
-        if (this.isTransitioning) return;
-
+        // Last section — swipe down at top goes back
         const sec = this.currentSection;
-        const isLast = sec === this.totalSections - 1;
-
-        if (isLast && diff < 0) {
+        if (sec === this.totalSections - 1) {
             const el = this.sections[sec];
-            if (el.scrollTop === 0) {
-                this._mobileAutoplay = true;
+            if (diff < -40 && el.scrollTop <= 5 && !this.isTransitioning) {
                 this.transitionToSection(sec - 1);
             }
-            return;
-        }
-
-        if (diff > 0) {
-            this._mobileAutoplay = true;
-            this.transitionToSection(sec + 1);
-        } else {
-            this._mobileAutoplay = true;
-            this.transitionToSection(sec - 1);
         }
     }
 
@@ -385,10 +369,7 @@ class VideoSectionController {
         // Cleanup outgoing
         if (this.isVideoSection(this.currentSection)) {
             const outVideo = this.videos[this.currentSection];
-            if (outVideo) {
-                outVideo.pause();
-                outVideo.loop = false;
-            }
+            if (outVideo) outVideo.pause();
             this.sections[this.currentSection].classList.remove('video-playing');
             this.sections[this.currentSection].classList.remove('video-paused');
             this.setProgressBar(null);
@@ -414,22 +395,8 @@ class VideoSectionController {
             this.renderTime[idx]  = 0;
             this._smoothedAccum[idx] = 0;
             if (this.videos[idx]) {
+                this.videos[idx].pause();
                 this.videos[idx].currentTime = 0;
-
-                // Mobile: auto-play video as background
-                if (this._mobileAutoplay) {
-                    this._mobileAutoplay = false;
-                    const v = this.videos[idx];
-                    v.loop = true;
-                    v.play().then(() => {
-                        this.sections[idx].classList.add('video-playing');
-                    }).catch(() => {
-                        // play failed — just show static frame
-                        v.currentTime = 0;
-                    });
-                } else {
-                    this.videos[idx].pause();
-                }
             }
         }
 
