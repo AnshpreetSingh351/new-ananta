@@ -59,6 +59,7 @@ class VideoSectionController {
         // Clears after 120ms of NO scroll events (= gesture ended).
         this._scrollGated    = false;
         this._gateTimer      = null;
+        this._isTouchInput   = false;
 
         this.init();
     }
@@ -217,6 +218,7 @@ class VideoSectionController {
     }
 
     handleWheel(e) {
+        this._isTouchInput = false;
         const isLast = this.currentSection === this.totalSections - 1;
         if (isLast) {
             const el = this.sections[this.currentSection];
@@ -238,6 +240,7 @@ class VideoSectionController {
         this.lastTouchY = e.touches[0].clientY;
         this._touchStartY = e.touches[0].clientY;
         this._touchMoved = false;
+        this._isTouchInput = true;
     }
 
     handleTouchMove(e) {
@@ -255,20 +258,19 @@ class VideoSectionController {
             return;
         }
         e.preventDefault();
-        if (this.isTransitioning) return;
-        if (this._isScrollGated()) {
+        if (this.isTransitioning) {
             this.lastTouchY = y;
             return;
         }
 
+        // No gate on mobile — continuous flow
         // Continuous — every pixel counts, no threshold
         if (Math.abs(diff) > 2) {
             this._touchMoved = true;
             this.lastTouchY = y;
 
-            // Scale touch distance for natural feel
-            // Multiply by 1.5 so finger movement maps well to video progress
-            const amount = Math.abs(diff) * 1.5;
+            // 3x multiplier — faster, more responsive feel
+            const amount = Math.abs(diff) * 3;
             this.handleNavigate(diff > 0 ? 1 : -1, amount);
         }
     }
@@ -350,9 +352,17 @@ class VideoSectionController {
 
         if (progress >= 1) {
             this.phase = 'done';
-            this._scrollGated = true;
-            setTimeout(() => this.setProgressBar(null), 600);
-            this.updateScrollHint('Scroll to continue');
+
+            if (this._isTouchInput) {
+                // Mobile — no stop, flow straight to next section
+                setTimeout(() => this.setProgressBar(null), 300);
+                this.transitionToSection(sec + 1);
+            } else {
+                // Desktop — gate scroll, user must scroll again
+                this._scrollGated = true;
+                setTimeout(() => this.setProgressBar(null), 600);
+                this.updateScrollHint('Scroll to continue');
+            }
         } else {
             this.updateScrollHint('Keep scrolling…');
         }
