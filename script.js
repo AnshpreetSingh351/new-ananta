@@ -52,6 +52,7 @@ class VideoSectionController {
         // Mobile
         this._touchStartY = 0;
         this._mobileVideoPlaying = false;
+        this._mobileAutoplay = false;
 
         this.init();
     }
@@ -125,10 +126,10 @@ class VideoSectionController {
     _smoothSeek(now) {
         const sec = this.currentSection;
         if (!this.isVideoSection(sec)) return;
-        if (this._mobileVideoPlaying) return;
 
         const video = this.videos[sec];
         if (!video || video.readyState < 2) return;
+        if (!video.paused) return; // video is auto-playing, don't fight it
 
         const elapsed = now - this._lastRAF;
         this._lastRAF = now;
@@ -151,6 +152,16 @@ class VideoSectionController {
     onLoaderDone() {
         this.phase = 'arrived';
         this.updateScrollHint('Scroll to play');
+
+        // On mobile, auto-play first video as background
+        const isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        if (isMobile && this.videos[0]) {
+            const v = this.videos[0];
+            v.loop = true;
+            v.play().then(() => {
+                this.sections[0].classList.add('video-playing');
+            }).catch(() => {});
+        }
     }
 
     isVideoSection(idx) { return idx < this.totalVideoSections; }
@@ -236,64 +247,26 @@ class VideoSectionController {
 
         if (Math.abs(diff) < 40) return;
         if (this.isTransitioning) return;
-        if (this._mobileVideoPlaying) return;
 
         const sec = this.currentSection;
         const isLast = sec === this.totalSections - 1;
 
         if (isLast && diff < 0) {
             const el = this.sections[sec];
-            if (el.scrollTop === 0) this.transitionToSection(sec - 1);
+            if (el.scrollTop === 0) {
+                this._mobileAutoplay = true;
+                this.transitionToSection(sec - 1);
+            }
             return;
         }
 
         if (diff > 0) {
-            // SWIPE UP → fast-scrub video then go next
-            if (this.isVideoSection(sec)) {
-                this._fastScrubVideo(sec);
-            } else {
-                this.transitionToSection(sec + 1);
-            }
+            this._mobileAutoplay = true;
+            this.transitionToSection(sec + 1);
         } else {
-            // SWIPE DOWN → go back
+            this._mobileAutoplay = true;
             this.transitionToSection(sec - 1);
         }
-    }
-
-    // Fast-scrub: advance video.currentTime via RAF over ~1.5 seconds
-    // Works on every mobile browser — no play(), no playbackRate
-    _fastScrubVideo(sec) {
-        const video = this.videos[sec];
-        if (!video || video.readyState < 2) {
-            this.transitionToSection(sec + 1);
-            return;
-        }
-
-        this._mobileVideoPlaying = true;
-        this.sections[sec].classList.add('video-playing');
-
-        const duration  = video.duration || 5;
-        const scrubTime = 1.5; // seconds to complete the scrub
-        const startTime = performance.now();
-
-        video.currentTime = 0;
-
-        const animate = (now) => {
-            const elapsed  = (now - startTime) / 1000;
-            const progress = Math.min(elapsed / scrubTime, 1);
-
-            video.currentTime = progress * duration;
-
-            if (progress < 1) {
-                requestAnimationFrame(animate);
-            } else {
-                // Done — go to next section
-                this._mobileVideoPlaying = false;
-                this.sections[sec].classList.remove('video-playing');
-                this.transitionToSection(sec + 1);
-            }
-        };
-        requestAnimationFrame(animate);
     }
 
     /* ═══════════════════════════════════════════════════════
@@ -409,14 +382,13 @@ class VideoSectionController {
         this.isTransitioning = true;
         if (this.cooldownTimer) clearTimeout(this.cooldownTimer);
 
-        // Stop any mobile video playing
-        if (this._mobileVideoPlaying && this.isVideoSection(this.currentSection)) {
-            this.videos[this.currentSection]?.pause();
-            this._mobileVideoPlaying = false;
-        }
-
         // Cleanup outgoing
         if (this.isVideoSection(this.currentSection)) {
+            const outVideo = this.videos[this.currentSection];
+            if (outVideo) {
+                outVideo.pause();
+                outVideo.loop = false;
+            }
             this.sections[this.currentSection].classList.remove('video-playing');
             this.sections[this.currentSection].classList.remove('video-paused');
             this.setProgressBar(null);
@@ -442,8 +414,22 @@ class VideoSectionController {
             this.renderTime[idx]  = 0;
             this._smoothedAccum[idx] = 0;
             if (this.videos[idx]) {
-                this.videos[idx].pause();
                 this.videos[idx].currentTime = 0;
+
+                // Mobile: auto-play video as background
+                if (this._mobileAutoplay) {
+                    this._mobileAutoplay = false;
+                    const v = this.videos[idx];
+                    v.loop = true;
+                    v.play().then(() => {
+                        this.sections[idx].classList.add('video-playing');
+                    }).catch(() => {
+                        // play failed — just show static frame
+                        v.currentTime = 0;
+                    });
+                } else {
+                    this.videos[idx].pause();
+                }
             }
         }
 
