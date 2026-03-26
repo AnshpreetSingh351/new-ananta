@@ -45,11 +45,13 @@ class VideoSectionController {
         this.targetTime  = [];   // where scroll says we should be
         this.renderTime  = [];   // what video.currentTime actually is (lerped)
 
-        this.SCROLL_TO_COMPLETE = 2000;
+        this.SCROLL_TO_COMPLETE = 2800;
 
-        // Smoothing factor — controls how quickly render catches up to target
-        // Lower = smoother/silkier but more lag; Higher = snappier
-        this.LERP_FACTOR = 0.12;
+        // Smoothing — lower = silkier
+        this.LERP_FACTOR = 0.07;
+
+        // Input smoothing — dampens spiky scroll deltas
+        this._smoothedAccum = [];
 
         this._lastRAF = performance.now();
 
@@ -70,6 +72,7 @@ class VideoSectionController {
             this.scrollAccum.push(0);
             this.targetTime.push(0);
             this.renderTime.push(0);
+            this._smoothedAccum.push(0);
         }
 
         // ── Load every video as a blob → full file in RAM ────
@@ -109,6 +112,7 @@ class VideoSectionController {
         window.addEventListener('wheel',      this.handleWheel.bind(this),      { passive: false });
         window.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: true  });
         window.addEventListener('touchmove',  this.handleTouchMove.bind(this),  { passive: false });
+        window.addEventListener('touchend',   this.handleTouchEnd.bind(this),   { passive: true  });
         window.addEventListener('keydown',    this.handleKeydown.bind(this));
 
         this.indicators.forEach((ind, i) => {
@@ -142,13 +146,22 @@ class VideoSectionController {
         // Frame-rate-independent lerp
         const elapsed = now - this._lastRAF;
         this._lastRAF = now;
-        const dt   = Math.min(elapsed / 16.667, 3);   // normalize to 60fps
+        const dt   = Math.min(elapsed / 16.667, 3);
         const lerp = 1 - Math.pow(1 - this.LERP_FACTOR, dt);
 
         const diff = this.targetTime[sec] - this.renderTime[sec];
 
-        if (Math.abs(diff) > 0.005) {
-            this.renderTime[sec] += diff * lerp;
+        if (Math.abs(diff) > 0.001) {
+            let step = diff * lerp;
+
+            // Clamp max seek per frame — prevents big jumps that
+            // force the decoder to cross keyframes (= jank source)
+            const maxStep = 0.08;  // ~2 frames at 30fps
+            if (Math.abs(step) > maxStep) {
+                step = Math.sign(step) * maxStep;
+            }
+
+            this.renderTime[sec] += step;
             video.currentTime = this.renderTime[sec];
         }
     }
@@ -221,15 +234,20 @@ class VideoSectionController {
         this.handleNavigate(dy > 0 ? 1 : -1, Math.abs(dy));
     }
 
-    handleTouchStart(e) { this.lastTouchY = e.touches[0].clientY; }
+    handleTouchStart(e) {
+        this.lastTouchY = e.touches[0].clientY;
+        this._touchStartY = e.touches[0].clientY;
+        this._touchMoved = false;
+    }
 
     handleTouchMove(e) {
+        const y    = e.touches[0].clientY;
+        const diff = this.lastTouchY - y;  // positive = scroll down
+
         const isLast = this.currentSection === this.totalSections - 1;
         if (isLast) {
-            const el   = this.sections[this.currentSection];
-            const y    = e.touches[0].clientY;
-            const diff = this.lastTouchY - y;
-            if (el.scrollTop === 0 && diff < -50 && !this.isTransitioning) {
+            const el = this.sections[this.currentSection];
+            if (el.scrollTop === 0 && diff < -30 && !this.isTransitioning) {
                 e.preventDefault();
                 this.lastTouchY = y;
                 this.handleNavigate(-1, Math.abs(diff));
@@ -238,12 +256,29 @@ class VideoSectionController {
         }
         e.preventDefault();
         if (this.isTransitioning) return;
-        const y    = e.touches[0].clientY;
-        const diff = this.lastTouchY - y;
-        if (Math.abs(diff) > 15) {
-            if (this._isScrollGated()) return;
+        if (this._isScrollGated()) {
             this.lastTouchY = y;
-            this.handleNavigate(diff > 0 ? 1 : -1, Math.abs(diff));
+            return;
+        }
+
+        // Continuous — every pixel counts, no threshold
+        if (Math.abs(diff) > 2) {
+            this._touchMoved = true;
+            this.lastTouchY = y;
+
+            // Scale touch distance for natural feel
+            // Multiply by 1.5 so finger movement maps well to video progress
+            const amount = Math.abs(diff) * 1.5;
+            this.handleNavigate(diff > 0 ? 1 : -1, amount);
+        }
+    }
+
+    handleTouchEnd() {
+        // On mobile there's no momentum — finger lifted = gesture done.
+        // Clear the gate immediately so next touch goes through instantly.
+        if (this._scrollGated) {
+            this._scrollGated = false;
+            clearTimeout(this._gateTimer);
         }
     }
 
@@ -279,6 +314,7 @@ class VideoSectionController {
                 this.scrollAccum[sec] = 0;
                 this.targetTime[sec]  = 0;
                 this.renderTime[sec]  = 0;
+                this._smoothedAccum[sec] = 0;
                 this.phase = 'arrived';
                 this.sections[sec].classList.remove('video-playing');
                 this.setProgressBar(null);
@@ -297,11 +333,16 @@ class VideoSectionController {
         this.sections[sec].classList.add('video-playing');
         this.phase = 'scrubbing';
 
-        // Cap per-event to prevent one big trackpad swipe from
-        // finishing the entire video in a single gesture
-        amount = Math.min(amount, 120);
+        // Cap per-event
+        amount = Math.min(amount, 100);
 
-        this.scrollAccum[sec] = Math.min(this.scrollAccum[sec] + amount, this.SCROLL_TO_COMPLETE);
+        // Smooth the input — blend new delta with previous to kill spikes
+        this._smoothedAccum[sec] = this._smoothedAccum[sec] * 0.3 + amount * 0.7;
+
+        this.scrollAccum[sec] = Math.min(
+            this.scrollAccum[sec] + this._smoothedAccum[sec],
+            this.SCROLL_TO_COMPLETE
+        );
         const progress = this.scrollAccum[sec] / this.SCROLL_TO_COMPLETE;
 
         this.targetTime[sec] = progress * (video.duration || 5);
@@ -309,7 +350,6 @@ class VideoSectionController {
 
         if (progress >= 1) {
             this.phase = 'done';
-            // Gate scroll — eat remaining momentum, clear after 120ms silence
             this._scrollGated = true;
             setTimeout(() => this.setProgressBar(null), 600);
             this.updateScrollHint('Scroll to continue');
@@ -323,7 +363,13 @@ class VideoSectionController {
         const video = this.videos[sec];
         if (!video) return;
 
-        this.scrollAccum[sec] = Math.max(this.scrollAccum[sec] - amount, 0);
+        amount = Math.min(amount, 100);
+        this._smoothedAccum[sec] = this._smoothedAccum[sec] * 0.3 + amount * 0.7;
+
+        this.scrollAccum[sec] = Math.max(
+            this.scrollAccum[sec] - this._smoothedAccum[sec],
+            0
+        );
         const progress = this.scrollAccum[sec] / this.SCROLL_TO_COMPLETE;
 
         this.targetTime[sec] = progress * (video.duration || 5);
@@ -368,6 +414,7 @@ class VideoSectionController {
             this.scrollAccum[idx] = 0;
             this.targetTime[idx]  = 0;
             this.renderTime[idx]  = 0;
+            this._smoothedAccum[idx] = 0;
             if (this.videos[idx]) {
                 this.videos[idx].currentTime = 0;
             }
