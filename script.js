@@ -2,7 +2,7 @@
    ANANTA STREET — Ultra-Smooth Scroll-Scrub Video Controller
    ─────────────────────────────────────────────────────────────
    Desktop: Scroll-to-scrub with smooth lerp + gate
-   Mobile:  One swipe = transition to next section (video plays via CSS)
+   Mobile:  Swipe up → video plays fully → auto next section
    ═══════════════════════════════════════════════════════════════ */
 
 // ── LOADER ──────────────────────────────────────────────────
@@ -37,8 +37,6 @@ class VideoSectionController {
         this.lastTouchY = 0;
 
         this.scrollAccum = [];
-
-        // Smooth time tracking
         this.targetTime  = [];
         this.renderTime  = [];
 
@@ -51,8 +49,9 @@ class VideoSectionController {
         this._scrollGated = false;
         this._gateTimer   = null;
 
-        // Mobile detection
-        this._isMobile = 'ontouchstart' in window || navigator.maxTouchPoints > 0;
+        // Mobile
+        this._touchStartY = 0;
+        this._mobileVideoPlaying = false;
 
         this.init();
     }
@@ -69,7 +68,7 @@ class VideoSectionController {
             this._smoothedAccum.push(0);
         }
 
-        // ── Load every video as a blob → full file in RAM ────
+        // ── Load every video as a blob ───────────────────────
         this.videos.forEach((video, i) => {
             video.muted       = true;
             video.playsInline = true;
@@ -94,7 +93,7 @@ class VideoSectionController {
             }
         });
 
-        // ── Master render loop — always running ──────────────
+        // ── Master render loop ───────────────────────────────
         const tick = (now) => {
             requestAnimationFrame(tick);
             this._smoothSeek(now);
@@ -105,6 +104,7 @@ class VideoSectionController {
         window.addEventListener('wheel',      this.handleWheel.bind(this),      { passive: false });
         window.addEventListener('touchstart', this.handleTouchStart.bind(this), { passive: true  });
         window.addEventListener('touchmove',  this.handleTouchMove.bind(this),  { passive: false });
+        window.addEventListener('touchend',   this.handleTouchEnd.bind(this),   { passive: false });
         window.addEventListener('keydown',    this.handleKeydown.bind(this));
 
         this.indicators.forEach((ind, i) => {
@@ -121,10 +121,11 @@ class VideoSectionController {
         });
     }
 
-    /* ─── SMOOTH SEEK (desktop only — RAF loop) ─────────── */
+    /* ─── SMOOTH SEEK (desktop scrub — RAF loop) ────────── */
     _smoothSeek(now) {
         const sec = this.currentSection;
         if (!this.isVideoSection(sec)) return;
+        if (this._mobileVideoPlaying) return;
 
         const video = this.videos[sec];
         if (!video || video.readyState < 2) return;
@@ -171,7 +172,6 @@ class VideoSectionController {
         }
     }
 
-    // ── Input helpers ───────────────────────────────────────
     _normDelta(e) {
         let dy = e.deltaY || 0;
         if (e.deltaMode === 1) dy *= 40;
@@ -188,7 +188,9 @@ class VideoSectionController {
         return true;
     }
 
-    /* ─── DESKTOP: WHEEL ────────────────────────────────── */
+    /* ═══════════════════════════════════════════════════════
+       DESKTOP: WHEEL (scroll-to-scrub)
+    ═══════════════════════════════════════════════════════ */
     handleWheel(e) {
         const isLast = this.currentSection === this.totalSections - 1;
         if (isLast) {
@@ -207,50 +209,91 @@ class VideoSectionController {
         this.handleNavigate(dy > 0 ? 1 : -1, Math.abs(dy));
     }
 
-    /* ─── MOBILE: TOUCH ─────────────────────────────────── */
+    /* ═══════════════════════════════════════════════════════
+       MOBILE: TOUCH
+       - touchstart: record Y
+       - touchmove: just prevent scroll, track Y
+       - touchend: detect swipe direction, play video from
+         THIS event (touchend = valid user gesture, so
+         video.play() works on iOS/Android)
+    ═══════════════════════════════════════════════════════ */
     handleTouchStart(e) {
-        this.lastTouchY   = e.touches[0].clientY;
         this._touchStartY = e.touches[0].clientY;
+        this.lastTouchY   = e.touches[0].clientY;
     }
 
     handleTouchMove(e) {
-        const y    = e.touches[0].clientY;
-        const diff = this.lastTouchY - y;  // positive = swipe up (scroll down)
-
+        // Allow normal scroll on last section (footer)
         const isLast = this.currentSection === this.totalSections - 1;
-        if (isLast) {
-            const el = this.sections[this.currentSection];
-            if (el.scrollTop === 0 && diff < -30 && !this.isTransitioning) {
-                e.preventDefault();
-                this.lastTouchY = y;
-                this.transitionToSection(this.currentSection - 1);
-            }
-            return;
-        }
+        if (isLast) return;
+
+        // Block native scroll on all other sections
         e.preventDefault();
-        if (this.isTransitioning) {
-            this.lastTouchY = y;
+    }
+
+    handleTouchEnd(e) {
+        const diff = this._touchStartY - (e.changedTouches[0]?.clientY || this.lastTouchY);
+
+        // Need at least 40px swipe
+        if (Math.abs(diff) < 40) return;
+        if (this.isTransitioning) return;
+        if (this._mobileVideoPlaying) return;
+
+        const sec = this.currentSection;
+
+        // Last section — swipe down to go back
+        const isLast = sec === this.totalSections - 1;
+        if (isLast) {
+            if (diff < 0) {
+                const el = this.sections[sec];
+                if (el.scrollTop === 0) {
+                    this.transitionToSection(sec - 1);
+                }
+            }
             return;
         }
 
-        // Need at least 40px of swipe to trigger
-        const totalDiff = this._touchStartY - y;
+        if (diff > 0) {
+            // ── SWIPE UP → play video + go next ──────────────
+            if (this.isVideoSection(sec)) {
+                const video = this.videos[sec];
+                if (video && video.readyState >= 2) {
+                    this._mobileVideoPlaying = true;
+                    this.sections[sec].classList.add('video-playing');
 
-        if (Math.abs(totalDiff) > 40) {
-            this.lastTouchY    = y;
-            this._touchStartY  = y;  // reset so it doesn't fire again
-
-            if (totalDiff > 0) {
-                // Swipe UP → go forward (next section)
-                this.transitionToSection(this.currentSection + 1);
+                    video.currentTime = 0;
+                    video.play().then(() => {
+                        // Video is playing — wait for it to end
+                        const onEnd = () => {
+                            video.removeEventListener('ended', onEnd);
+                            video.pause();
+                            this._mobileVideoPlaying = false;
+                            this.sections[sec].classList.remove('video-playing');
+                            this.transitionToSection(sec + 1);
+                        };
+                        video.addEventListener('ended', onEnd);
+                    }).catch(() => {
+                        // play() failed — just transition
+                        this._mobileVideoPlaying = false;
+                        this.sections[sec].classList.remove('video-playing');
+                        this.transitionToSection(sec + 1);
+                    });
+                } else {
+                    // Video not ready — just transition
+                    this.transitionToSection(sec + 1);
+                }
             } else {
-                // Swipe DOWN → go backward (prev section)
-                this.transitionToSection(this.currentSection - 1);
+                this.transitionToSection(sec + 1);
             }
+        } else {
+            // ── SWIPE DOWN → go previous ─────────────────────
+            this.transitionToSection(sec - 1);
         }
     }
 
-    /* ─── KEYBOARD ──────────────────────────────────────── */
+    /* ═══════════════════════════════════════════════════════
+       KEYBOARD
+    ═══════════════════════════════════════════════════════ */
     handleKeydown(e) {
         if (this.isTransitioning) return;
         if (e.key === 'ArrowDown' || e.key === ' ') {
@@ -262,7 +305,9 @@ class VideoSectionController {
         }
     }
 
-    /* ─── DESKTOP NAVIGATION (scroll-to-scrub) ──────────── */
+    /* ═══════════════════════════════════════════════════════
+       DESKTOP NAVIGATION (scroll-to-scrub)
+    ═══════════════════════════════════════════════════════ */
     handleNavigate(delta, amount = 60) {
         const sec = this.currentSection;
         if (!this.isVideoSection(sec)) {
@@ -349,13 +394,21 @@ class VideoSectionController {
         }
     }
 
-    /* ─── SECTION TRANSITIONS ───────────────────────────── */
+    /* ═══════════════════════════════════════════════════════
+       SECTION TRANSITIONS
+    ═══════════════════════════════════════════════════════ */
     transitionToSection(idx) {
         if (idx < 0 || idx >= this.totalSections) return;
         if (this.isTransitioning) return;
 
         this.isTransitioning = true;
         if (this.cooldownTimer) clearTimeout(this.cooldownTimer);
+
+        // Stop any mobile video playing
+        if (this._mobileVideoPlaying && this.isVideoSection(this.currentSection)) {
+            this.videos[this.currentSection]?.pause();
+            this._mobileVideoPlaying = false;
+        }
 
         // Cleanup outgoing
         if (this.isVideoSection(this.currentSection)) {
