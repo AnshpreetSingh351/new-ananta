@@ -458,6 +458,15 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     });
 
+    // Nav logo → go to section 0
+    const navLogo = document.getElementById('navLogoLink');
+    if (navLogo) {
+        navLogo.addEventListener('click', function (e) {
+            e.preventDefault();
+            if (window._videoController) window._videoController.jumpToSection(0);
+        });
+    }
+
     document.addEventListener('keydown', function (e) {
         if (e.key === 'Escape') closePanel();
     });
