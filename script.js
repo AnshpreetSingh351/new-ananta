@@ -234,7 +234,7 @@ class VideoSectionController {
 
         // Every 2px of finger movement = scrub
         if (Math.abs(diff) > 2) {
-            const amount = Math.abs(diff) * 4;
+            const amount = Math.abs(diff) * 14;
             this.handleNavigate(diff > 0 ? 1 : -1, amount);
         }
     }
