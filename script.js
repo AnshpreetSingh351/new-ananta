@@ -40,7 +40,8 @@ class VideoSectionController {
         this.targetTime  = [];
         this.renderTime  = [];
 
-        this.SCROLL_TO_COMPLETE = 1500;
+        this._isMobile = ('ontouchstart' in window) || (navigator.maxTouchPoints > 0);
+        this.SCROLL_TO_COMPLETE = this._isMobile ? 500 : 1500;
         this.LERP_FACTOR = 0.15;
         this._smoothedAccum = [];
         this._lastRAF = performance.now();
@@ -234,7 +235,7 @@ class VideoSectionController {
 
         // Every 2px of finger movement = scrub
         if (Math.abs(diff) > 2) {
-            const amount = Math.abs(diff) * 14;
+            const amount = Math.abs(diff) * 20;
             this.handleNavigate(diff > 0 ? 1 : -1, amount);
         }
     }
@@ -309,7 +310,7 @@ class VideoSectionController {
         this.sections[sec].classList.add('video-playing');
         this.phase = 'scrubbing';
 
-        amount = Math.min(amount, 100);
+        amount = Math.min(amount, this._isMobile ? 300 : 100);
         this._smoothedAccum[sec] = this._smoothedAccum[sec] * 0.1 + amount * 0.9;
 
         this.scrollAccum[sec] = Math.min(
