@@ -40,8 +40,8 @@ class VideoSectionController {
         this.targetTime  = [];
         this.renderTime  = [];
 
-        this.SCROLL_TO_COMPLETE = 2800;
-        this.LERP_FACTOR = 0.07;
+        this.SCROLL_TO_COMPLETE = 1500;
+        this.LERP_FACTOR = 0.15;
         this._smoothedAccum = [];
         this._lastRAF = performance.now();
 
@@ -137,7 +137,7 @@ class VideoSectionController {
 
         if (Math.abs(diff) > 0.001) {
             let step = diff * lerp;
-            const maxStep = 0.08;
+            const maxStep = 0.2;
             if (Math.abs(step) > maxStep) {
                 step = Math.sign(step) * maxStep;
             }
@@ -310,7 +310,7 @@ class VideoSectionController {
         this.phase = 'scrubbing';
 
         amount = Math.min(amount, 100);
-        this._smoothedAccum[sec] = this._smoothedAccum[sec] * 0.3 + amount * 0.7;
+        this._smoothedAccum[sec] = this._smoothedAccum[sec] * 0.1 + amount * 0.9;
 
         this.scrollAccum[sec] = Math.min(
             this.scrollAccum[sec] + this._smoothedAccum[sec],
@@ -337,7 +337,7 @@ class VideoSectionController {
         if (!video) return;
 
         amount = Math.min(amount, 100);
-        this._smoothedAccum[sec] = this._smoothedAccum[sec] * 0.3 + amount * 0.7;
+        this._smoothedAccum[sec] = this._smoothedAccum[sec] * 0.1 + amount * 0.9;
 
         this.scrollAccum[sec] = Math.max(
             this.scrollAccum[sec] - this._smoothedAccum[sec],
