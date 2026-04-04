@@ -42,7 +42,7 @@ class VideoSectionController {
 
         this.isMobile = window.innerWidth <= 768;
 
-this.SCROLL_TO_COMPLETE = this.isMobile ? 3250 : 4000;
+this.SCROLL_TO_COMPLETE = this.isMobile ? 800 : 4000;
         this.LERP_FACTOR = 0.07;
         this._smoothedAccum = [];
         this._lastRAF = performance.now();
