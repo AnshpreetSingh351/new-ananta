@@ -260,7 +260,7 @@ body {
     justify-content: center;
     opacity: 0;
     visibility: hidden;
-    transition: opacity 0.75s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.75s ease;
+    transition: opacity 0.6s ease, visibility 0.6s ease;
 }
 .video-section.active { opacity: 1; visibility: visible; }
 
@@ -589,7 +589,7 @@ body {
     height: 100vh;
     opacity: 0;
     visibility: hidden;
-    transition: opacity 0.75s cubic-bezier(0.4, 0, 0.2, 1), visibility 0.75s ease;
+    transition: opacity 0.6s ease, visibility 0.6s ease;
     overflow-y: auto;
     overflow-x: hidden;
     -webkit-overflow-scrolling: touch;
@@ -1502,4 +1502,372 @@ body {
 @media (max-width: 480px) {
     .enquiry-inner { padding: 2.5rem 1.6rem 2rem; }
     .enquiry-tab { display: none; }
+}
+
+
+/* ═══════════════════════════════════════════════════════════════
+   TEXT CONTENT SECTIONS
+   Pattern: video → text → video → text → ...
+   ═══════════════════════════════════════════════════════════════ */
+
+.text-section {
+    position: absolute;
+    top: 0; left: 0;
+    width: 100%; height: 100vh;
+    overflow: hidden;
+    display: flex;
+    align-items: center;
+    opacity: 0;
+    visibility: hidden;
+    transition: opacity 0.6s ease, visibility 0.6s ease;
+    background: #080808;
+}
+.text-section.active { opacity: 1; visibility: visible; }
+
+/* Top gold hairline */
+.text-section::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(201,169,98,0.15) 15%,
+        var(--color-accent) 50%,
+        rgba(201,169,98,0.15) 85%,
+        transparent 100%
+    );
+    z-index: 5;
+}
+
+/* Bottom gold hairline */
+.text-section::after {
+    content: '';
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 1px;
+    background: linear-gradient(90deg,
+        transparent 0%,
+        rgba(201,169,98,0.08) 30%,
+        rgba(201,169,98,0.25) 50%,
+        rgba(201,169,98,0.08) 70%,
+        transparent 100%
+    );
+    z-index: 5;
+}
+
+/* ── Giant watermark numeral ─────────────────────────────── */
+.ts-bg-num {
+    position: absolute;
+    font-family: var(--font-display);
+    font-size: clamp(20rem, 38vw, 50rem);
+    font-weight: 700;
+    color: transparent;
+    -webkit-text-stroke: 1px rgba(201,169,98,0.055);
+    line-height: 0.82;
+    user-select: none;
+    pointer-events: none;
+    letter-spacing: -0.06em;
+    z-index: 0;
+    right: -3%;
+    top: 50%;
+    transform: translateY(-50%);
+    transition: none;
+}
+/* Right-variant: flip number to the left */
+.text-section.ts-right .ts-bg-num {
+    right: auto;
+    left: -3%;
+}
+
+/* ── Corner ornaments ───────────────────────────────────── */
+.ts-corner {
+    position: absolute;
+    width: 28px;
+    height: 28px;
+    z-index: 4;
+    pointer-events: none;
+}
+.ts-corner-tl { top: 28px; left: 32px; border-top: 1px solid rgba(201,169,98,0.35); border-left: 1px solid rgba(201,169,98,0.35); }
+.ts-corner-br { bottom: 28px; right: 32px; border-bottom: 1px solid rgba(201,169,98,0.35); border-right: 1px solid rgba(201,169,98,0.35); }
+.ts-corner-tr { top: 28px; right: 32px; border-top: 1px solid rgba(201,169,98,0.35); border-right: 1px solid rgba(201,169,98,0.35); }
+.ts-corner-bl { bottom: 28px; left: 32px; border-bottom: 1px solid rgba(201,169,98,0.35); border-left: 1px solid rgba(201,169,98,0.35); }
+
+/* ── Main body layout ───────────────────────────────────── */
+.ts-body {
+    position: relative;
+    z-index: 2;
+    width: 100%;
+    max-width: 1240px;
+    margin: 0 auto;
+    padding: 0 7%;
+    display: flex;
+    align-items: flex-start;
+    gap: 4rem;
+}
+.ts-body.ts-left-align  { flex-direction: row; }
+.ts-body.ts-right-align { flex-direction: row-reverse; }
+
+/* ── Title block ────────────────────────────────────────── */
+.ts-head {
+    flex: 0 0 auto;
+    width: 34%;
+    padding-top: 0.5rem;
+}
+
+.ts-chapter {
+    font-family: var(--font-body);
+    font-size: 0.63rem;
+    letter-spacing: 0.42em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+    display: flex;
+    align-items: center;
+    gap: 0.9rem;
+    margin-bottom: 1.6rem;
+    opacity: 0;
+}
+.ts-chapter::before {
+    content: '';
+    display: inline-block;
+    width: 28px;
+    height: 1px;
+    background: linear-gradient(90deg, var(--color-accent), transparent);
+    flex-shrink: 0;
+}
+/* Right-align variant: flip decoration */
+.ts-body.ts-right-align .ts-head { text-align: right; }
+.ts-body.ts-right-align .ts-chapter { flex-direction: row-reverse; }
+.ts-body.ts-right-align .ts-chapter::before {
+    background: linear-gradient(270deg, var(--color-accent), transparent);
+}
+
+.ts-title {
+    font-family: var(--font-display);
+    font-size: clamp(3rem, 5.5vw, 5.8rem);
+    font-weight: 500;
+    line-height: 1.08;
+    letter-spacing: 0.01em;
+    color: var(--color-text);
+    opacity: 0;
+    transform: translateY(42px);
+}
+
+/* ── Vertical divider line ──────────────────────────────── */
+.ts-divider-v {
+    flex-shrink: 0;
+    width: 1px;
+    height: 200px;
+    background: linear-gradient(to bottom,
+        transparent 0%,
+        rgba(201,169,98,0.5) 30%,
+        rgba(201,169,98,0.5) 70%,
+        transparent 100%
+    );
+    opacity: 0;
+    transform: scaleY(0);
+    transform-origin: center;
+}
+
+/* ── Description block ──────────────────────────────────── */
+.ts-desc-wrap {
+    flex: 1;
+}
+
+.ts-label {
+    font-family: var(--font-body);
+    font-size: 0.68rem;
+    letter-spacing: 0.26em;
+    text-transform: uppercase;
+    color: rgba(255,255,255,0.28);
+    margin-bottom: 1.2rem;
+    opacity: 0;
+}
+
+.ts-rule {
+    width: 38px;
+    height: 1px;
+    background: linear-gradient(90deg, var(--color-accent), transparent);
+    margin-bottom: 1.5rem;
+    opacity: 0;
+    transform: scaleX(0);
+    transform-origin: left;
+}
+/* Right-align: flip rule direction */
+.ts-body.ts-right-align .ts-desc-wrap { text-align: right; }
+.ts-body.ts-right-align .ts-rule {
+    background: linear-gradient(270deg, var(--color-accent), transparent);
+    transform-origin: right;
+    margin-left: auto;
+}
+
+.ts-text {
+    font-size: clamp(0.87rem, 1.1vw, 1rem);
+    font-weight: 300;
+    color: rgba(255, 255, 255, 0.62);
+    line-height: 1.98;
+    opacity: 0;
+    transform: translateY(18px);
+}
+
+/* ── Right column: image on top, text below ─────────────── */
+.ts-right-col {
+    flex: 1;
+    display: flex;
+    flex-direction: column;
+    gap: 1.6rem;
+    min-width: 0;
+}
+
+.ts-image {
+    position: relative;
+    width: 100%;
+    overflow: hidden;
+    opacity: 0;
+    transform: translateY(22px);
+}
+
+.ts-image::after {
+    content: '';
+    position: absolute;
+    inset: 0;
+    border: 1px solid rgba(201,169,98,0.25);
+    pointer-events: none;
+    z-index: 2;
+}
+
+.ts-image img {
+    width: 100%;
+    height: 200px;
+    object-fit: cover;
+    display: block;
+    filter: brightness(0.82) saturate(0.8);
+    transition: filter 0.55s ease, transform 0.55s ease;
+}
+
+.ts-image:hover img {
+    filter: brightness(1) saturate(1);
+    transform: scale(1.03);
+}
+
+.ts-image-caption {
+    font-family: var(--font-body);
+    font-size: 0.58rem;
+    letter-spacing: 0.3em;
+    text-transform: uppercase;
+    color: var(--color-accent);
+    padding: 0.55rem 0.8rem;
+    background: rgba(201,169,98,0.05);
+    border-bottom: 1px solid rgba(201,169,98,0.15);
+}
+
+.text-section.active .ts-image {
+    animation: tsTextIn 0.9s ease 0.85s forwards;
+}
+
+@media (max-width: 768px) {
+    .ts-image img { height: 180px; }
+}
+
+/* ══════════════════════════════════════════════════════════
+   ENTRANCE ANIMATIONS  (fire when .active is added)
+   ══════════════════════════════════════════════════════════ */
+
+.text-section.active .ts-chapter {
+    animation: tsChapterIn 0.75s cubic-bezier(0.16,1,0.3,1) 0.25s forwards;
+}
+.text-section.active .ts-title {
+    animation: tsTitleIn 1s cubic-bezier(0.16,1,0.3,1) 0.38s forwards;
+}
+.text-section.active .ts-divider-v {
+    animation: tsDividerIn 0.9s ease 0.3s forwards;
+}
+.text-section.active .ts-label {
+    animation: tsFadeUp 0.75s ease 0.52s forwards;
+}
+.text-section.active .ts-rule {
+    animation: tsRuleIn 0.8s cubic-bezier(0.76,0,0.24,1) 0.62s forwards;
+}
+.text-section.active .ts-text {
+    animation: tsTextIn 0.85s ease 0.72s forwards;
+}
+
+@keyframes tsChapterIn {
+    from { opacity: 0; transform: translateX(-14px); }
+    to   { opacity: 1; transform: translateX(0); }
+}
+@keyframes tsTitleIn {
+    from { opacity: 0; transform: translateY(42px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes tsDividerIn {
+    from { opacity: 0; transform: scaleY(0); }
+    to   { opacity: 1; transform: scaleY(1); }
+}
+@keyframes tsFadeUp {
+    from { opacity: 0; transform: translateY(12px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes tsRuleIn {
+    from { opacity: 0; transform: scaleX(0); }
+    to   { opacity: 1; transform: scaleX(1); }
+}
+@keyframes tsTextIn {
+    from { opacity: 0; transform: translateY(18px); }
+    to   { opacity: 1; transform: translateY(0); }
+}
+
+/* Right-variant sections now use ts-left-align, so chapter slides from left like all others */
+.text-section.ts-right.active .ts-chapter {
+    animation: tsChapterIn 0.75s cubic-bezier(0.16,1,0.3,1) 0.25s forwards;
+}
+
+/* ── Scroll hint re-uses existing scroll-hint styles ─── */
+.text-section .scroll-hint { z-index: 6; }
+
+/* ─── RESPONSIVE ─────────────────────────────────────── */
+@media (max-width: 900px) {
+    .ts-body { gap: 3rem; }
+    .ts-head { width: 40%; }
+}
+
+@media (max-width: 768px) {
+    .ts-body,
+    .ts-body.ts-left-align,
+    .ts-body.ts-right-align {
+        flex-direction: column;
+        gap: 2.2rem;
+        padding: 0 6%;
+        text-align: center;
+    }
+    .ts-head { width: 100%; text-align: center !important; }
+    .ts-chapter,
+    .ts-body.ts-right-align .ts-chapter {
+        flex-direction: row;
+        justify-content: center;
+    }
+    .ts-chapter::before,
+    .ts-body.ts-right-align .ts-chapter::before {
+        background: linear-gradient(90deg, var(--color-accent), transparent);
+    }
+    .ts-divider-v { display: none; }
+    .ts-right-col { width: 100%; }
+    .ts-desc-wrap,
+    .ts-body.ts-right-align .ts-desc-wrap { text-align: center; }
+    .ts-rule,
+    .ts-body.ts-right-align .ts-rule {
+        background: linear-gradient(90deg, transparent, var(--color-accent), transparent);
+        margin: 0 auto 1.5rem;
+        width: 50px;
+    }
+    .ts-bg-num,
+    .text-section.ts-right .ts-bg-num { display: none; }
+    .ts-title { font-size: clamp(2.8rem, 9vw, 4rem); }
+    .ts-corner { display: none; }
+}
+
+@media (max-width: 480px) {
+    .ts-body { padding: 0 5%; gap: 1.8rem; }
+    .ts-title { font-size: clamp(2.2rem, 10vw, 3rem); }
+    .ts-text { font-size: 0.86rem; line-height: 1.85; }
 }

@@ -25,15 +25,14 @@
 class VideoSectionController {
     constructor() {
         this.currentSection     = 0;
-        this.totalVideoSections = 6;
-        this.totalSections      = 7;
+        this.totalSections      = 10;   // 5 video + 4 text + 1 static
         this.isTransitioning    = false;
         this.cooldownTimer      = null;
         this.phase              = 'arrived';
 
         this.sections   = [];
         this.indicators = [];
-        this.videos     = [];
+        this.videos     = [];           // kept for preloading all videos
         this.lastTouchY = 0;
 
         this.scrollAccum = [];
@@ -42,7 +41,7 @@ class VideoSectionController {
 
         this.isMobile = window.innerWidth <= 768;
 
-this.SCROLL_TO_COMPLETE = this.isMobile ? 800 : 4000;
+        this.SCROLL_TO_COMPLETE = this.isMobile ? 800 : 2000;
         this.LERP_FACTOR = 0.07;
         this._smoothedAccum = [];
         this._lastRAF = performance.now();
@@ -58,11 +57,12 @@ this.SCROLL_TO_COMPLETE = this.isMobile ? 800 : 4000;
     }
 
     init() {
-        this.sections   = Array.from(document.querySelectorAll('.video-section, .static-section'));
+        this.sections   = Array.from(document.querySelectorAll('.video-section, .text-section, .static-section'));
         this.indicators = Array.from(document.querySelectorAll('.indicator'));
         this.videos     = Array.from(document.querySelectorAll('.section-video'));
 
-        for (let i = 0; i < this.totalVideoSections; i++) {
+        // Initialise per-section scroll state arrays (only video sections use them)
+        for (let i = 0; i < this.totalSections; i++) {
             this.scrollAccum.push(0);
             this.targetTime.push(0);
             this.renderTime.push(0);
@@ -112,9 +112,9 @@ this.SCROLL_TO_COMPLETE = this.isMobile ? 800 : 4000;
             ind.addEventListener('click', () => this.jumpToSection(i));
         });
 
-        // ── Progress bars ────────────────────────────────────
+        // ── Progress bars (video sections only) ─────────────
         this.sections.forEach((sec, i) => {
-            if (i < this.totalVideoSections) {
+            if (sec.classList.contains('video-section')) {
                 const bar = document.createElement('div');
                 bar.className = 'video-progress-bar';
                 sec.appendChild(bar);
@@ -127,7 +127,7 @@ this.SCROLL_TO_COMPLETE = this.isMobile ? 800 : 4000;
         const sec = this.currentSection;
         if (!this.isVideoSection(sec)) return;
 
-        const video = this.videos[sec];
+        const video = this.sections[sec]?.querySelector('.section-video');
         if (!video || video.readyState < 2) return;
 
         const elapsed = now - this._lastRAF;
@@ -153,7 +153,10 @@ this.SCROLL_TO_COMPLETE = this.isMobile ? 800 : 4000;
         this.updateScrollHint('Scroll to play');
     }
 
-    isVideoSection(idx) { return idx < this.totalVideoSections; }
+    /* Returns true if the section at idx is a video section */
+    isVideoSection(idx) {
+        return this.sections[idx]?.classList.contains('video-section') ?? false;
+    }
 
     updateScrollHint(text) {
         const hint = this.sections[this.currentSection]?.querySelector('.scroll-hint span');
@@ -274,6 +277,8 @@ this.SCROLL_TO_COMPLETE = this.isMobile ? 800 : 4000;
     ═══════════════════════════════════════════════════════ */
     handleNavigate(delta, amount = 60) {
         const sec = this.currentSection;
+
+        // Text sections and static section: just transition immediately
         if (!this.isVideoSection(sec)) {
             this.transitionToSection(sec + delta);
             return;
@@ -305,7 +310,7 @@ this.SCROLL_TO_COMPLETE = this.isMobile ? 800 : 4000;
 
     scrubForward(amount) {
         const sec   = this.currentSection;
-        const video = this.videos[sec];
+        const video = this.sections[sec]?.querySelector('.section-video');
         if (!video) return;
 
         this.sections[sec].classList.add('video-playing');
@@ -335,7 +340,7 @@ this.SCROLL_TO_COMPLETE = this.isMobile ? 800 : 4000;
 
     scrubBackward(amount) {
         const sec   = this.currentSection;
-        const video = this.videos[sec];
+        const video = this.sections[sec]?.querySelector('.section-video');
         if (!video) return;
 
         amount = Math.min(amount, 100);
@@ -368,9 +373,9 @@ this.SCROLL_TO_COMPLETE = this.isMobile ? 800 : 4000;
         this.isTransitioning = true;
         if (this.cooldownTimer) clearTimeout(this.cooldownTimer);
 
-        // Cleanup outgoing
+        // Cleanup outgoing video section
         if (this.isVideoSection(this.currentSection)) {
-            const outVideo = this.videos[this.currentSection];
+            const outVideo = this.sections[this.currentSection]?.querySelector('.section-video');
             if (outVideo) outVideo.pause();
             this.sections[this.currentSection].classList.remove('video-playing');
             this.sections[this.currentSection].classList.remove('video-paused');
@@ -380,25 +385,28 @@ this.SCROLL_TO_COMPLETE = this.isMobile ? 800 : 4000;
         this.sections[this.currentSection].classList.remove('active');
         this.indicators[this.currentSection].classList.remove('active');
 
+        // Reset scroll position when leaving the last (static) section
         if (this.currentSection === this.totalSections - 1) {
             this.sections[this.currentSection].scrollTop = 0;
         }
 
-        // Activate incoming
+        // Activate incoming section
         this.currentSection = idx;
         this.phase = 'arrived';
 
         this.sections[idx].classList.add('active');
         this.indicators[idx].classList.add('active');
 
+        // Reset incoming video state
         if (this.isVideoSection(idx)) {
             this.scrollAccum[idx] = 0;
             this.targetTime[idx]  = 0;
             this.renderTime[idx]  = 0;
             this._smoothedAccum[idx] = 0;
-            if (this.videos[idx]) {
-                this.videos[idx].pause();
-                this.videos[idx].currentTime = 0;
+            const inVideo = this.sections[idx]?.querySelector('.section-video');
+            if (inVideo) {
+                inVideo.pause();
+                inVideo.currentTime = 0;
             }
         }
 
